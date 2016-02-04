@@ -86,6 +86,10 @@ namespace linc {
 
                 } //platform_stop
 
+                void platform_update() {
+
+                } //platform_update
+
                 static bool path_exists( const std::string &path ) {
 
                     // printf("/ filewatch / path_exists / %s\n", path.c_str());

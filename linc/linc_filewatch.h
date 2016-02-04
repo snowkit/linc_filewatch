@@ -32,6 +32,7 @@ namespace linc {
             extern void platform_stop();
             extern bool platform_init();
             extern void platform_shutdown();
+            extern void platform_update();
 
         //user facing
 

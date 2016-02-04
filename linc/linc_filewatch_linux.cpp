@@ -1,3 +1,5 @@
+#include "./linc_filewatch.h"
+
 #include <unistd.h>
 #include <sys/inotify.h>
 #include <map>
