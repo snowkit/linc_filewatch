@@ -35,7 +35,7 @@ namespace linc {
 
                     watcher = NULL;
 
-                    printf("/ filewatch / stopped\n");
+                    // printf("/ filewatch / stopped\n");
 
                 } //platform_stop
 
@@ -43,13 +43,19 @@ namespace linc {
 
                     //don't attempt to start twice
                     if(watcher) {
-                        printf("/ filewatch / cannot start filewatch twice, this is less than ideal\n");
+                        // printf("/ filewatch / cannot start filewatch twice, this is less than ideal\n");
                         return;
                     }
 
-                    if(watched_paths.size() == 0) {
-                        printf("/ filewatch / not starting filewatch, no paths in list\n");
+                    int _count = watched_paths.size();
+                    if(_count == 0) {
+                        // printf("/ filewatch / not starting filewatch, no paths in list\n");
                         return;
+                    } else {
+
+                        // printf("/ filewatch / start with paths:\n");
+                        // for(int i = 0; i < _count; ++i) { printf("    > %s\n", watched_paths[i].c_str()); }
+
                     }
 
                         //make a list that CFArray can use
@@ -69,19 +75,21 @@ namespace linc {
                     );
 
                     if(!watcher) {
-                        printf("/ filewatch / failed to start\n");
+                        // printf("/ filewatch / failed to start\n");
                         return;
                     }
 
-                    FSEventStreamScheduleWithRunLoop( watcher, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode );
-                    FSEventStreamStart( watcher );
+                    FSEventStreamScheduleWithRunLoop(watcher, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+                    FSEventStreamStart(watcher);
 
-                    printf("/ filewatch / started\n");
+                    // printf("/ filewatch / started\n");
 
                 } //platform_start
 
 
                 static bool path_exists( const std::string &path ) {
+
+                    // printf("/ filewatch / path_exists / %s\n", path.c_str());
 
                     int res = access(path.c_str(), R_OK);
                     if (res < 0) {
@@ -115,7 +123,7 @@ namespace linc {
 
                             FilewatchEventType _event_type = fe_unknown;
 
-                            printf("/ filewatch / event on path %s id %#010x\n", path.c_str(), eventFlags[i]);
+                            // printf("/ filewatch / event on path %s id %#010x\n", path.c_str(), eventFlags[i]);
 
                                 //if it was modified but not renamed, we can fire a modify ok
                             if(  (flag & kFSEventStreamEventFlagItemModified) &&
@@ -123,18 +131,21 @@ namespace linc {
                                 !(flag & kFSEventStreamEventFlagItemCreated)
                               ) {
 
-                                printf("/ filewatch /     modify on path %s\n", path.c_str());
+                                // printf("/ filewatch /     modify on path %s\n", path.c_str());
+
                                 _event_type = fe_modify;
 
                                 //if it was removed entirely (using rm or similar, it seems) this is ok, flag it
                             } else if( flag & kFSEventStreamEventFlagItemRemoved ) {
 
-                                printf("/ filewatch /     remove on path %s\n", path.c_str());
+                                // printf("/ filewatch /     remove on path %s\n", path.c_str());
+
                                 _event_type = fe_remove;
 
                             } else if( flag & kFSEventStreamEventFlagItemCreated ) {
 
-                                printf("/ filewatch /     create on path %s\n", path.c_str());
+                                // printf("/ filewatch /     create on path %s\n", path.c_str());
+
                                 _event_type = fe_create;
 
                             } else {
@@ -154,19 +165,20 @@ namespace linc {
                                     }
 
                                 } else { //renamed
-                                    printf("/ filewatch / not watching event on path %s id %#010x\n", path.c_str(), eventFlags[i]);
+
+                                    // printf("/ filewatch / not watching event on path %s id %#010x\n", path.c_str(), eventFlags[i]);
+
                                 }
 
                             } //else
 
-                            if(_event_type != fe_unknown && user_callback != null()) {                            
+                            if(_event_type != fe_unknown && user_callback != null()) {
                                 user_callback(_event_type, ::String(path.c_str()));
                             }
 
                         } else {
 
-                                //verbose
-                            printf("/ filewatch / not watching event on path %s id %#010x\n", path.c_str(), eventFlags[i]);
+                            // printf("/ filewatch / not watching event on path %s id %#010x\n", path.c_str(), eventFlags[i]);
 
                         }
 

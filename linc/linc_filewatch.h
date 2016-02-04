@@ -52,8 +52,6 @@ namespace linc {
 
             inline void refresh() {
 
-                printf("/ filewatch / refresh\n");
-
                 platform_stop();
                 platform_start();
 
@@ -61,7 +59,7 @@ namespace linc {
 
             inline void add_watch(const char* _path) {
 
-                printf("/ filewatch / add path %s\n", _path);
+                // printf("/ filewatch / add path %s\n", _path);
 
                 watched_paths.push_back( std::string(_path) );
                 refresh();
@@ -76,13 +74,13 @@ namespace linc {
                     watched_paths.erase( found );
                     refresh();
 
-                    printf("/ filewatch / remove path found! %s\n", _path);
+                    // printf("/ filewatch / remove path found! %s\n", _path);
 
                     return true;
 
                 } // found
 
-                printf("/ filewatch / remove path not found! %s\n", _path);
+                // printf("/ filewatch / remove path not found! %s\n", _path);
 
                 return false;
 

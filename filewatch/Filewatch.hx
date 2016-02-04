@@ -6,6 +6,16 @@ package filewatch;
     var FWE_modify      = 1;
     var FWE_remove      = 2;
     var FWE_create      = 3;
+
+    inline function toString() {
+        return switch(this) {
+            case FWE_unknown:   'FWE_unknown';
+            case FWE_modify:    'FWE_modify';
+            case FWE_remove:    'FWE_remove';
+            case FWE_create:    'FWE_create';
+            case _:             '$this';
+        }
+    }
 }
 
 typedef FilewatchEvent = {
@@ -21,9 +31,7 @@ typedef FilewatchEvent = {
 #end
 extern class Filewatch {
 
-    static inline function init(_callback:FilewatchEvent->Void) : Void {
-        //
-    } //init
+    static inline function init(_callback:FilewatchEvent->Void) : Void FilewatchInternal.init(_callback);
 
     @:native('linc::filewatch::add_watch')
     static function add_watch(_path:String) : Void;
@@ -45,6 +53,7 @@ private class FilewatchInternal {
     static var callback : FilewatchEvent->Void;
     static var inited : Bool = false;
 
+    @:allow(filewatch.Filewatch)
     inline static function init(_callback:FilewatchEvent->Void) {
 
         callback = _callback;
