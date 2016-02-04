@@ -5,7 +5,10 @@
         <compilerflag value='-I${LINC_FILEWATCH_PATH}linc/'/>
 
         <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch.cpp' />
+
         <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch_mac.mm' if="mac"/>
+        <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch_linux.cpp' if="linux"/>
+        <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch_windows.cpp' if="windows"/>
 
     </files>
 
