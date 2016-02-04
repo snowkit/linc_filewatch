@@ -28,18 +28,17 @@ namespace linc {
             extern std::vector<std::string> watched_paths;
             extern InternalFilewatchFN user_callback;
 
-            extern void refresh();
-            extern void platform_stop();
             extern void platform_start();
-            extern void platform_init();
+            extern void platform_stop();
+            extern bool platform_init();
             extern void platform_shutdown();
 
         //user facing
 
-            inline void init(InternalFilewatchFN _callback) {
+            inline bool init(InternalFilewatchFN _callback) {
 
                 user_callback = _callback;
-                platform_init();
+                return platform_init();
 
             } //init
 

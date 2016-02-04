@@ -24,21 +24,6 @@ namespace linc {
 
             //platform implementation details
 
-                void platform_stop() {
-
-                    if( watcher ) {
-                        FSEventStreamUnscheduleFromRunLoop( watcher, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode );
-                        FSEventStreamStop( watcher );
-                        FSEventStreamInvalidate( watcher );
-                        FSEventStreamRelease( watcher );
-                    }
-
-                    watcher = NULL;
-
-                    // printf("/ filewatch / stopped\n");
-
-                } //platform_stop
-
                 void platform_start() {
 
                     //don't attempt to start twice
@@ -86,6 +71,20 @@ namespace linc {
 
                 } //platform_start
 
+                void platform_stop() {
+
+                    if( watcher ) {
+                        FSEventStreamUnscheduleFromRunLoop( watcher, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode );
+                        FSEventStreamStop( watcher );
+                        FSEventStreamInvalidate( watcher );
+                        FSEventStreamRelease( watcher );
+                    }
+
+                    watcher = NULL;
+
+                    // printf("/ filewatch / stopped\n");
+
+                } //platform_stop
 
                 static bool path_exists( const std::string &path ) {
 
@@ -188,7 +187,9 @@ namespace linc {
 
             //internal implementation details
 
-                void platform_init() {
+                bool platform_init() {
+
+                    return true;
 
                 } //platform_init
 

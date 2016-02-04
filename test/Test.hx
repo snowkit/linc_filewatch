@@ -1,6 +1,10 @@
 
 import filewatch.Filewatch;
 
+    #if (!mac && !linux && !windows)
+        #error "You should define a target, please read build.hxml"
+    #end
+
 class Test {
 
     static function main() {
@@ -17,9 +21,9 @@ class Test {
         while(idx < 4) {
             idx++;
             sys.io.File.saveContent('./test.file$idx', 'linc filewatch ' + Math.random());
-            Sys.sleep(2);
+            Sys.sleep(1);
             sys.FileSystem.deleteFile('./test.file$idx');
-            Sys.sleep(2);
+            Sys.sleep(1);
         }
 
         Filewatch.shutdown();

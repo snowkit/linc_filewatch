@@ -31,7 +31,7 @@ typedef FilewatchEvent = {
 #end
 extern class Filewatch {
 
-    static inline function init(_callback:FilewatchEvent->Void) : Void FilewatchInternal.init(_callback);
+    static inline function init(_callback:FilewatchEvent->Void) : Bool return FilewatchInternal.init(_callback);
 
     @:native('linc::filewatch::add_watch')
     static function add_watch(_path:String) : Void;
@@ -44,7 +44,7 @@ extern class Filewatch {
 
     @:allow(filewatch.FilewatchInternal)
     @:native('linc::filewatch::init')
-    private static function internal_init(func:cpp.Callable<Int->String->Void>): Void;
+    private static function internal_init(func:cpp.Callable<Int->String->Void>): Bool;
 
 } //Filewatch
 
@@ -54,14 +54,16 @@ private class FilewatchInternal {
     static var inited : Bool = false;
 
     @:allow(filewatch.Filewatch)
-    inline static function init(_callback:FilewatchEvent->Void) {
+    inline static function init(_callback:FilewatchEvent->Void) : Bool {
 
         callback = _callback;
 
         if(inited == false) {
             inited = true;
-            Filewatch.internal_init( cpp.Callable.fromStaticFunction(internal_callback) );
+            return Filewatch.internal_init( cpp.Callable.fromStaticFunction(internal_callback) );
         }
+
+        return inited;
 
     } //init
 
