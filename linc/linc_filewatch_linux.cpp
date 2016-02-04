@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <sys/inotify.h>
 #include <map>
-
+#include <errno.h>
 
 namespace linc {
 
