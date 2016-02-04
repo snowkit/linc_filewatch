@@ -1,0 +1,17 @@
+<xml>
+
+    <files id='haxe'>
+
+        <compilerflag value='-I${LINC_FILEWATCH_PATH}linc/'/>
+
+        <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch.cpp' />
+        <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch_mac.mm' if="mac"/>
+
+    </files>
+
+    <target id="haxe">
+
+
+    </target>
+
+</xml>
