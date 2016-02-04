@@ -57,6 +57,12 @@ namespace linc {
 
             } //refresh
 
+            inline void update() {
+
+                platform_update();
+
+            } //update
+
             inline void add_watch(const char* _path) {
 
                 // printf("/ filewatch / add path %s\n", _path);

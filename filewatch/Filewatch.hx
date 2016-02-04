@@ -39,6 +39,9 @@ extern class Filewatch {
     @:native('linc::filewatch::remove_watch')
     static function remove_watch(_path:String) : Bool;
 
+    @:native('linc::filewatch::update')
+    static function update() : Void;
+
     @:native('linc::filewatch::shutdown')
     static function shutdown() : Void;
 
