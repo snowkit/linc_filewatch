@@ -23,9 +23,9 @@ namespace snow {
             // the consumer just waits till he can grab the item. the producers are not affected.
         struct event_node_t {
 
-            event_node_t* volatile  next;
+            event_node_t* volatile next;
             int event_type;
-            const char* path;
+            std::string path;
 
         }; // event_node_t
 

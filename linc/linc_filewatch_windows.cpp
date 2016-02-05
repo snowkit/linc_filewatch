@@ -8,7 +8,9 @@ namespace linc {
 
     namespace filewatch {
 
-        static eventqueue_t filewatch_queue;
+        class FileWatcherThread;
+
+        static snow::io::eventqueue_t filewatch_queue;
         static std::vector<FileWatcherThread*> watchers;
 
         //internal implementation
@@ -110,7 +112,7 @@ namespace linc {
                             std::wstring widepath(szwFileName);
                             std::string path(widepath.begin(), widepath.end());
 
-                            FileEventType _event_type = fe_unknown;
+                            FilewatchEventType _event_type = fe_unknown;
 
                                 switch( notifier->Action ) {
 
@@ -144,12 +146,11 @@ namespace linc {
                                 if(_event_type != fe_unknown) {
 
                                     // put into queue
-                                    std::string final = (watcher->path+"/"+path);
-                                    event_node_t* node = new event_node_t;
-                                    node->path = final.c_str();
+                                    snow::io::event_node_t* node = new snow::io::event_node_t;
+                                    node->path = std::string(watcher->path+"/"+path);
                                     node->event_type = (int)_event_type;
 
-                                    eventqueue_push(&filewatch_queue, node);
+                                    snow::io::eventqueue_push(&filewatch_queue, node);
 
                                 }
 
@@ -208,7 +209,7 @@ namespace linc {
 
                 watchers.clear();
 
-                printf("/ filewatch / stopped");
+                // printf("/ filewatch / stopped");
 
             } //platform_stop
 
@@ -216,7 +217,7 @@ namespace linc {
 
                 // printf("/ filewatch / initialized file watch ok");
 
-                eventqueue_create((eventqueue_t*)&filewatch_queue);
+                snow::io::eventqueue_create((snow::io::eventqueue_t*)&filewatch_queue);
 
                 return true;
 
@@ -228,14 +229,13 @@ namespace linc {
 
             void platform_update() {
 
-                event_node_t* node;
-                while( node = eventqueue_pop(&filewatch_queue) ) {
+                snow::io::event_node_t* node;
+                while( node = snow::io::eventqueue_pop(&filewatch_queue) ) {
 
-                    event_node_t _node = *node;
-                    FilewatchEventType _event_type = (FilewatchEventType)_node->event_type;
+                    FilewatchEventType _event_type = (FilewatchEventType)(node->event_type);
 
                     if(user_callback != null()) {
-                        user_callback(_event_type, ::String(_node->path));
+                        user_callback(_event_type, ::String(node->path.c_str()));
                     }
 
                     delete node;
