@@ -21,7 +21,7 @@ namespace linc {
                 fe_create                       = 3
             }; //FilewatchEventType
 
-            typedef ::cpp::Function < Void(int, ::String) > InternalFilewatchFN;
+            typedef ::cpp::Function < void(int, ::String) > InternalFilewatchFN;
 
         //internal
 
