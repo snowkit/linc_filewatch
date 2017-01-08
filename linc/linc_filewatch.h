@@ -1,8 +1,5 @@
-#ifndef _LINC_FILEWATCH_H_
-#define _LINC_FILEWATCH_H_
+#pragma once
     
-// #include "../lib/____"
-
 #include <hxcpp.h>
 #include <string>
 #include <vector>
@@ -21,7 +18,7 @@ namespace linc {
                 fe_create                       = 3
             }; //FilewatchEventType
 
-            typedef ::cpp::Function < Void(int, ::String) > InternalFilewatchFN;
+            typedef ::cpp::Function < void(int, ::String) > InternalFilewatchFN;
 
         //internal
 
@@ -95,5 +92,3 @@ namespace linc {
     } //filewatch namespace
 
 } //linc
-
-#endif //_LINC_FILEWATCH_H_
