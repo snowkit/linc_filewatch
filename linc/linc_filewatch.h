@@ -17,8 +17,14 @@ namespace linc {
                 fe_remove                       = 2,
                 fe_create                       = 3
             }; //FilewatchEventType
+            
+            #if (HXCPP_API_LEVEL>=330)
+                typedef void LincFilewatchVoid;
+            #else
+                typedef Void LincFilewatchVoid;
+            #endif
 
-            typedef ::cpp::Function < void(int, ::String) > InternalFilewatchFN;
+            typedef ::cpp::Function < LincFilewatchVoid (int, ::String) > InternalFilewatchFN;
 
         //internal
 
