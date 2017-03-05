@@ -1,3 +1,5 @@
+#include <hxcpp.h>
+
 #include "./linc_filewatch.h"
 
 #define WIN32_LEAN_AND_MEAN
