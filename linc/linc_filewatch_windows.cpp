@@ -104,6 +104,8 @@ namespace linc {
 
                         while(seek < watcher->buffer_size) {
 
+                            if (!watcher->running) break;
+
                             PFILE_NOTIFY_INFORMATION notifier = PFILE_NOTIFY_INFORMATION(watcher->buffer + seek);
 
                             WCHAR szwFileName[MAX_PATH];
