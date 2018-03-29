@@ -1,6 +1,8 @@
 #pragma once
     
+#ifndef HXCPP_H
 #include <hxcpp.h>
+#endif
 #include <string>
 #include <vector>
 #include <algorithm> //std::find
