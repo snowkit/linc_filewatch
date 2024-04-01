@@ -26,7 +26,7 @@ namespace linc {
                 typedef Void LincFilewatchVoid;
             #endif
 
-            typedef ::cpp::Function < LincFilewatchVoid (int, ::String) > InternalFilewatchFN;
+            typedef ::cpp::Function < LincFilewatchVoid (int, ::String, ::String) > InternalFilewatchFN;
 
         //internal
 

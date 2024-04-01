@@ -1,7 +1,7 @@
 package filewatch;
 
 
-@:enum abstract FilewatchEventType(Int) from Int to Int {
+enum abstract FilewatchEventType(Int) from Int to Int {
     var FWE_unknown     = 0;
     var FWE_modify      = 1;
     var FWE_remove      = 2;
@@ -19,8 +19,10 @@ package filewatch;
 }
 
 typedef FilewatchEvent = {
+    var timestamp:Float;
     var type: FilewatchEventType;
-    var path: String;
+    var path: String;       // full path
+    var rel_path: String;   // relative to watched path
 }
 
 @:keep
@@ -47,7 +49,7 @@ extern class Filewatch {
 
     @:allow(filewatch.FilewatchInternal)
     @:native('linc::filewatch::init')
-    private static function internal_init(func:cpp.Callable<Int->String->Void>): Bool;
+    private static function internal_init(func:cpp.Callable<Int->String->String->Void>): Bool;
 
 } //Filewatch
 
@@ -70,13 +72,15 @@ private class FilewatchInternal {
 
     } //init
 
-    static function internal_callback(_type:Int, _path:String) : Void {
+    static function internal_callback(_type:Int, _path:String, _rel_path:String) : Void {
 
         if(!inited || callback == null) return;
 
         callback({
+            timestamp: haxe.Timer.stamp(),
             type: _type,
-            path: _path            
+            path: _path,
+            rel_path: _rel_path
         });
 
     } //internal_callback

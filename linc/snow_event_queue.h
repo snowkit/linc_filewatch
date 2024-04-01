@@ -26,6 +26,7 @@ namespace snow {
             event_node_t* volatile next;
             int event_type;
             std::string path;
+            std::string rel_path;
 
         }; // event_node_t
 

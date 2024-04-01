@@ -179,7 +179,7 @@ namespace linc {
 
                                         if(_event_type != fe_unknown && user_callback != null()) {
                                             std::string final = root + "/" + path;
-                                            user_callback(_event_type, ::String(final.c_str()));
+                                            user_callback(_event_type, ::String(final.c_str()), ::String(path.c_str()));
                                         }
 
                                     } //event->len
