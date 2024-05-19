@@ -1,10 +1,6 @@
 
 import filewatch.Filewatch;
 
-    #if (!mac && !linux && !windows)
-        #error "You should define a target, please read build.hxml"
-    #end
-
 class Test {
 
     static var start_time = 0.0;
@@ -24,11 +20,9 @@ class Test {
         trace('cwd is : $cwd');
         trace('file should be : $file');
 
-        Filewatch.init(function(event:FilewatchEvent) {
-            trace('type: ${event.type} path: ${event.path}');
+        Filewatch.add_watch(cwd, (event:FilewatchEvent)->{
+            trace('type: ${event.type} path: ${event.rel_file_path}');
         });
-
-        Filewatch.add_watch(cwd);
 
         while(looping) loop();
         

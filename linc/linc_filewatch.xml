@@ -3,4 +3,10 @@
         <compilerflag value='-I${LINC_FILEWATCH_PATH}linc/'/>
         <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch.cpp' />
     </files>
+    <section if="windows">
+        <compiler exe="cl.exe" id="MSVC">
+            <flag value="/Zc:__cplusplus"/>
+            <flag value="/std:c++17"/>
+        </compiler>
+    </section>
 </xml>
