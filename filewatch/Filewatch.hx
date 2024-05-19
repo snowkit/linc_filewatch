@@ -112,6 +112,14 @@ private class FilewatchInternal {
             rel_file_path: _rel_path
         };
 
+        // do housecleaning of older events in evtbuffer
+        var tmp = [];
+        for (k=>v in evtbuffer)
+            if (event.timestamp - v > 0.15)
+                tmp.push(k);
+        for (k in tmp)
+            evtbuffer.remove(k);
+
         var hash = djb2('$_type$_watch_path$_rel_path');
         if (evtbuffer.exists(hash)) {
             // make sure that the very same event cannot fire too quickly. 
@@ -124,7 +132,7 @@ private class FilewatchInternal {
         } else {
             deque.add(event);
             evtbuffer.set(hash, event.timestamp);
-        }        
+        }
     }
 
     //djb2 http://www.cse.yorku.ca/~oz/hash.html
