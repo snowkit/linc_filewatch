@@ -6,7 +6,8 @@
     <section if="windows">
         <compiler exe="cl.exe" id="MSVC">
             <flag value="/Zc:__cplusplus"/>
-            <flag value="/std:c++17"/>
+            <flag value="/std:c++17" if="HXCPP_CPP17"/>
+            <flag value="/std:c++20" if="HXCPP_CPP20"/>
         </compiler>
     </section>
 </xml>

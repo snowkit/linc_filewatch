@@ -209,8 +209,8 @@ namespace filewatch {
 		}
 
 		// Const memeber varibles don't let me implent moves nicely, if moves are really wanted std::unique_ptr should be used and move that.
-		FileWatch<StringType>(FileWatch<StringType>&&) = delete;
-		FileWatch<StringType>& operator=(FileWatch<StringType>&&) & = delete;
+		FileWatch(FileWatch<StringType>&&) = delete;
+		FileWatch& operator=(FileWatch<StringType>&&) & = delete;
 
 	private:
 		static constexpr C _regex_all[] = { '.', '*', '\0' };
@@ -241,7 +241,7 @@ namespace filewatch {
 		std::thread _callback_thread;
 
 		std::promise<void> _running;
-		std::atomic<bool> _destory = { false };
+		std::atomic<bool> _destroy = { false };
 		bool _watching_single_file = { false };
 
 // #pragma mark "Platform specific data"
@@ -276,7 +276,7 @@ namespace filewatch {
 
 		FolderInfo  _directory;
 
-		const std::uint32_t _listen_filters = IN_MODIFY | IN_CREATE | IN_DELETE;
+		const std::uint32_t _listen_filters = IN_CLOSE_WRITE | IN_CREATE | IN_DELETE;
 
 		const static std::size_t event_size = (sizeof(struct inotify_event));
 #endif // __unix__
@@ -361,7 +361,7 @@ namespace filewatch {
 
 		void destroy()
 		{
-			_destory = true;
+			_destroy = true;
 			_running = std::promise<void>();
 
 #ifdef _WIN32
@@ -558,7 +558,7 @@ namespace filewatch {
 					_callback_information.insert(_callback_information.end(), parsed_information.begin(), parsed_information.end());
 				}
 				_cv.notify_all();
-			} while (_destory == false);
+			} while (_destroy == static_cast<std::atomic<bool>>(false));
 
 			if (async_pending)
 			{
@@ -604,7 +604,7 @@ namespace filewatch {
 				}
 			}();
 
-			const auto watch = inotify_add_watch(folder, watch_path.c_str(), IN_MODIFY | IN_CREATE | IN_DELETE);
+			const auto watch = inotify_add_watch(folder, watch_path.c_str(), IN_CLOSE_WRITE | IN_CREATE | IN_DELETE);
 			if (watch < 0) 
 			{
 				throw std::system_error(errno, std::system_category());
@@ -617,7 +617,7 @@ namespace filewatch {
 			std::vector<char> buffer(_buffer_size);
 
 			_running.set_value();
-			while (_destory == false) 
+			while (_destroy == false) 
 			{
 				const auto length = read(_directory.folder, static_cast<void*>(buffer.data()), buffer.size());
 				if (length > 0) 
@@ -640,7 +640,7 @@ namespace filewatch {
 								{
 									parsed_information.emplace_back(StringType{ changed_file }, Event::removed);
 								}
-								else if (event->mask & IN_MODIFY) 
+								else if (event->mask & IN_CLOSE_WRITE) 
 								{
 									parsed_information.emplace_back(StringType{ changed_file }, Event::modified);
 								}
@@ -1216,10 +1216,10 @@ namespace filewatch {
 
 		void callback_thread()
 		{
-			while (_destory == false) {
+			while (_destroy == static_cast<std::atomic<bool>>(false)) {
 				std::unique_lock<std::mutex> lock(_callback_mutex);
-				if (_callback_information.empty() && _destory == false) {
-					_cv.wait(lock, [this] { return _callback_information.size() > 0 || _destory; });
+				if (_callback_information.empty() && _destroy == static_cast<std::atomic<bool>>(false)) {
+					_cv.wait(lock, [this] { return _callback_information.size() > 0 || _destroy; });
 				}
 				decltype(_callback_information) callback_information = {};
 				std::swap(callback_information, _callback_information);

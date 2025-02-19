@@ -1,5 +1,7 @@
 package filewatch;
 
+import haxe.io.Path;
+
 enum abstract FilewatchEventType(Int) from Int to Int {
     var FWE_unknown     = 0;
     var FWE_modify      = 1;
@@ -10,13 +12,13 @@ enum abstract FilewatchEventType(Int) from Int to Int {
 
     inline function toString() {
         return switch(this) {
-            case FWE_unknown:   'FWE_unknown';
-            case FWE_modify:    'FWE_modify';
-            case FWE_remove:    'FWE_remove';
-            case FWE_create:    'FWE_create';
-            case FWE_renamed_old: 'FWE_renamed_old';
-            case FWE_renamed_new: 'FWE_renamed_new';
-            case _:             '$this';
+            case FWE_unknown:       'FWE_unknown';
+            case FWE_modify:        'FWE_modify';
+            case FWE_remove:        'FWE_remove';
+            case FWE_create:        'FWE_create';
+            case FWE_renamed_old:   'FWE_renamed_old';
+            case FWE_renamed_new:   'FWE_renamed_new';
+            case _:                 '$this';
         }
     }
 }
@@ -108,8 +110,8 @@ private class FilewatchInternal {
         var event:FilewatchEvent = {
             timestamp: haxe.Timer.stamp(),
             type: _type,
-            watch_path: _watch_path,
-            rel_file_path: _rel_path
+            watch_path: Path.normalize(_watch_path),
+            rel_file_path: Path.normalize(_rel_path)
         };
 
         // do housecleaning of older events in evtbuffer
