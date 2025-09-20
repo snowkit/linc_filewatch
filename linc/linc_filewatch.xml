@@ -1,13 +1,21 @@
 <xml>
+
     <files id='haxe'>
+
         <compilerflag value='-I${LINC_FILEWATCH_PATH}linc/'/>
+        <compilerflag value='-DLINC_FILEWATCH_VERBOSE=1' if="LINC_FILEWATCH_VERBOSE"/>
+
         <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch.cpp' />
+
+        <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch_mac.mm' if="macos"/>
+        <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch_linux.cpp' if="linux"/>
+        <file name='${LINC_FILEWATCH_PATH}linc/linc_filewatch_windows.cpp' if="windows"/>
+
     </files>
-    <section if="windows">
-        <compiler exe="cl.exe" id="MSVC">
-            <flag value="/Zc:__cplusplus"/>
-            <flag value="/std:c++17" if="HXCPP_CPP17"/>
-            <flag value="/std:c++20" if="HXCPP_CPP20"/>
-        </compiler>
-    </section>
+
+    <target id="haxe">
+
+
+    </target>
+
 </xml>

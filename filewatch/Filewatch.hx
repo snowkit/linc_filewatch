@@ -10,15 +10,15 @@ enum abstract FilewatchEventType(Int) from Int to Int {
     var FWE_renamed_old = 4;
     var FWE_renamed_new = 5;
 
-    inline function toString() {
+    inline public function toString() {
         return switch(this) {
-            case FWE_unknown:       'FWE_unknown';
-            case FWE_modify:        'FWE_modify';
-            case FWE_remove:        'FWE_remove';
-            case FWE_create:        'FWE_create';
-            case FWE_renamed_old:   'FWE_renamed_old';
-            case FWE_renamed_new:   'FWE_renamed_new';
-            case _:                 '$this';
+            case FWE_unknown:   'FWE_unknown';
+            case FWE_modify:    'FWE_modify';
+            case FWE_remove:    'FWE_remove';
+            case FWE_create:    'FWE_create';
+            case FWE_renamed_old: 'FWE_renamed_old';
+            case FWE_renamed_new: 'FWE_renamed_new';
+            case _:             '$this';
         }
     }
 }
@@ -33,118 +33,74 @@ class FilewatchEvent {
 
 @:keep
 @:include('linc_filewatch.h')
+@:allow(filewatch.FilewatchInternal)
 #if !display
 @:build(linc.Linc.touch())
 @:build(linc.Linc.xml('filewatch'))
 #end
 extern class Filewatch {
-
-    @:allow(filewatch.FilewatchInternal)
     @:native('linc::filewatch::add_watch')
     private static function _add_watch(_path:String):Void;
 
-    @:allow(filewatch.FilewatchInternal)
     @:native('linc::filewatch::remove_watch')
-    private static function _remove_watch(_path:String):Bool;
+    private static function _remove_watch(_path:String) : Bool;
 
-    @:allow(filewatch.FilewatchInternal)
-    @:native('linc::filewatch::init')
-    private static function internal_init(func:cpp.Callable<Int->String->String->Void>):Void;
+    inline public static function add_watch(_path:String, _callback:FilewatchEvent->Void)
+        FilewatchInternal.add_watch(_path, _callback);
 
-    @:allow(filewatch.FilewatchInternal)
-    @:native('linc::filewatch::shutdown')
-    private static function _shutdown():Void;
-
-    inline public static function add_watch(_path:String, _cb:FilewatchEvent->Void) {
-        FilewatchInternal.add_watch(_path, _cb);
-    }
-
-    inline public static function remove_watch(_path:String) {
+    inline public static function remove_watch(_path:String)
         FilewatchInternal.remove_watch(_path);
-    }
 
-    inline public static function shutdown():Void {
-        FilewatchInternal.shutdown();
-    }
+    @:native('linc::filewatch::update')
+    static function update() : Void;
 
-    inline public static function update():Void {
-        while(true) {
-            var evt = FilewatchInternal.deque.pop(false);
-            if (evt == null) break;
-            FilewatchInternal.callbacks.get(evt.watch_path)(evt);
-        }
-    }
-}
+    @:native('linc::filewatch::shutdown')
+    static function shutdown() : Void;
+
+    @:native('linc::filewatch::init')
+    private static function _internal_init(func:cpp.Callable<Int->String->String->Void>): Bool;
+
+} //Filewatch
 
 @:allow(filewatch.Filewatch)
 private class FilewatchInternal {
 
-    static var inited = false;
     static var callbacks = new Map<String, FilewatchEvent->Void>();
-    static var deque = new sys.thread.Deque<FilewatchEvent>();
-    static var evtbuffer = new Map<Int, Float>();
+    static var inited : Bool = false;
 
     static function add_watch(_path:String, _callback:FilewatchEvent->Void):Void {
-        if(inited == false) {
-            inited = true;
-            Filewatch.internal_init( cpp.Callable.fromStaticFunction(internal_callback) );
-        }
+        if(inited == false)
+            inited = Filewatch._internal_init(cpp.Callable.fromStaticFunction(internal_callback));
+
+        // make sure the path is absolute!
+        if (!Path.isAbsolute(_path))
+            _path = Path.join([Path.removeTrailingSlashes(Path.normalize(Sys.getCwd())), _path]);
+
         callbacks.set(_path, _callback);
         Filewatch._add_watch(_path);
     }
-    
+
     static function remove_watch(_path:String):Void {
         Filewatch._remove_watch(_path);
         callbacks.remove(_path);
     }
 
-    static function shutdown():Void {
-        Filewatch._shutdown();
-        callbacks.clear();
-    }
-
-    static function internal_callback(_type:FilewatchEventType, _watch_path:String, _rel_path:String):Void {
-        var callback = callbacks.get(_watch_path);
-        if(!inited || callback == null) return;
-
-        var event:FilewatchEvent = {
+    static function internal_callback(_type:Int, _path:String, _rel_path:String) : Void {
+        final evt:FilewatchEvent = {
             timestamp: haxe.Timer.stamp(),
             type: _type,
-            watch_path: Path.normalize(_watch_path),
-            rel_file_path: Path.normalize(_rel_path)
+            watch_path: _path,
+            rel_file_path: _rel_path
         };
 
-        // do housecleaning of older events in evtbuffer
-        var tmp = [];
-        for (k=>v in evtbuffer)
-            if (event.timestamp - v > 0.15)
-                tmp.push(k);
-        for (k in tmp)
-            evtbuffer.remove(k);
+        var shouldSkip = !inited || !callbacks.exists(_path);
+        #if LINC_FILEWATCH_VERBOSE
+            trace(evt.type.toString() + ' - ' + _path + ' - ' + _rel_path + " (skipped: "+ shouldSkip +")");
+        #end
+        if(shouldSkip) return;
 
-        var hash = djb2('$_type$_watch_path$_rel_path');
-        if (evtbuffer.exists(hash)) {
-            // make sure that the very same event cannot fire too quickly. 
-            // This is a guard against the doubled modified events on windows and 
-            // shouldnt hurt us on other platforms
-            if (event.timestamp - evtbuffer.get(hash) > 0.1) {
-                deque.add(event);
-                evtbuffer.set(hash, event.timestamp);
-            }
-        } else {
-            deque.add(event);
-            evtbuffer.set(hash, event.timestamp);
-        }
-    }
-
-    //djb2 http://www.cse.yorku.ca/~oz/hash.html
-    static function djb2(str:String):Int {    
-        var hash:Int = 5381;
-        for (i in 0...str.length) {
-            hash = ((hash << 5) + hash) + str.charCodeAt(i);
-            hash = hash & hash; // 32 bit
-        }
-        return hash;
+        final callback = callbacks.get(_path);
+        callback(evt);
     }
 
 }

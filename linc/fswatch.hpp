@@ -1,0 +1,305 @@
+#pragma once
+#include <filesystem>
+#include <functional>
+#include <iostream>
+#include <map>
+#include <string>
+
+#ifdef __linux__
+#include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <sys/inotify.h>
+#include <sys/types.h>
+#include <unistd.h>
+#define MAX_EVENTS 1024 /*Max. number of events to process at one go*/
+#define LEN_NAME                                                               \
+  16 /*Assuming that the length of the filename won't exceed 16 bytes*/
+#define EVENT_SIZE (sizeof(struct inotify_event)) /*size of one event*/
+#define EVENT_BUF_LEN                                                          \
+  (MAX_EVENTS * (EVENT_SIZE + LEN_NAME)) /*buffer to store the data of         \
+                                            events*/
+#define WATCH_FLAGS (IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVE | IN_OPEN | IN_CLOSE)
+                     // IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVE | IN_ONLYDIR
+
+// Watch class keeps track of watch descriptors (wd), parent watch descriptors
+// (pd), and names (from event->name). The class provides some helpers for
+// inotify, primarily to enable recursive monitoring:
+// 1. To add a watch (inotify_add_watch), a complete path is needed, but events
+// only provide file/dir name with no path.
+// 2. Delete events provide parent watch descriptor and file/dir name, but
+// removing the watch (infotify_rm_watch) needs a wd.
+//
+class Watch {
+  struct wd_elem {
+    int pd;
+    std::string name;
+    bool operator()(const wd_elem &l, const wd_elem &r) const {
+      return l.pd < r.pd ? true
+                         : l.pd == r.pd && l.name < r.name ? true : false;
+    }
+  };
+  std::map<int, wd_elem> watch;
+  std::map<wd_elem, int, wd_elem> rwatch;
+
+public:
+  // Insert event information, used to create new watch, into Watch object.
+  void insert(int pd, const std::string &name, int wd) {
+    wd_elem elem = {pd, name};
+    watch[wd] = elem;
+    rwatch[elem] = wd;
+  }
+  // Erase watch specified by pd (parent watch descriptor) and name from watch
+  // list. Returns full name (for display etc), and wd, which is required for
+  // inotify_rm_watch.
+  std::string erase(int pd, const std::string &name, int *wd) {
+    wd_elem pelem = {pd, name};
+    *wd = rwatch[pelem];
+    rwatch.erase(pelem);
+    const wd_elem &elem = watch[*wd];
+    std::string dir = elem.name;
+    watch.erase(*wd);
+    return dir;
+  }
+  // Given a watch descriptor, return the full directory name as string.
+  // Recurses up parent WDs to assemble name, an idea borrowed from Windows
+  // change journals.
+  std::string get(int wd) {
+    const wd_elem &elem = watch[wd];
+    return elem.pd == -1 ? elem.name : this->get(elem.pd) + "/" + elem.name;
+  }
+  // Given a parent wd and name (provided in IN_DELETE events), return the watch
+  // descriptor. Main purpose is to help remove directories from watch list.
+  int get(int pd, std::string name) {
+    wd_elem elem = {pd, name};
+    return rwatch[elem];
+  }
+  void cleanup(int fd) {
+    for (auto wi = watch.begin(); wi != watch.end();) {
+      inotify_rm_watch(fd, wi->first);
+      wi = watch.erase(wi);
+    }
+    rwatch.clear();
+  }
+  void stats() {
+    std::cout << "number of watches=" << watch.size()
+              << " & reverse watches=" << rwatch.size() << std::endl;
+  }
+};
+#endif
+
+class fswatch {
+public:
+  enum class Event {
+    FILE_CREATED,
+    FILE_OPENED,
+    FILE_MODIFIED,
+    FILE_CLOSED,
+    FILE_DELETED,
+    DIR_CREATED,
+    DIR_OPENED,
+    DIR_MODIFIED,
+    DIR_CLOSED,
+    DIR_DELETED
+  };
+
+  struct EventInfo {
+    Event type;
+    std::filesystem::path path;
+  };
+
+  fswatch() : run(false) {}
+
+  void on(const Event &event,
+          const std::function<void(const EventInfo &)> &action) {
+    callbacks[event] = action;
+  }
+
+  void on(const std::vector<Event> &events,
+          const std::function<void(const EventInfo &)> &action) {
+    for (auto &event : events) {
+      callbacks[event] = action;
+    }
+  }
+
+#ifdef __linux__
+  void stop() { 
+    if (run) {
+      // Cleanup
+      watch.cleanup(fd);
+      close(fd);
+      fflush(stdout);
+    }
+    run = false;
+  }
+
+  void start(const std::vector<std::string>& _paths) {
+    if (run) return;
+
+    // creating the INOTIFY instance
+    // inotify_init1 not available with older kernels, consequently inotify
+    // reads block. inotify_init1 allows directory events to complete
+    // immediately, avoiding buffering delays. In practice, this significantly
+    // improves monotiring of newly created subdirectories.
+#ifdef IN_NONBLOCK
+    fd = inotify_init1(IN_NONBLOCK);
+#else
+    fd = inotify_init();
+#endif
+
+    // checking for error
+    if (fd < 0) {
+      throw std::runtime_error("inotify_init failed");
+    }
+
+    // use select watch list for non-blocking inotify read
+    FD_ZERO(&watch_set);
+    FD_SET(fd, &watch_set);
+
+    int wd;
+    for (auto& path_string : _paths) {
+      const char *root = path_string.c_str();
+      wd = inotify_add_watch(fd, root, WATCH_FLAGS);
+      // add wd and directory name to Watch map
+      watch.insert(-1, root, wd);
+    }
+
+    run = true;
+  }
+
+  void update() {
+    int wd;
+    char buffer[EVENT_BUF_LEN];
+    std::string current_dir, new_dir;
+    int total_file_events = 0;
+    int total_dir_events = 0;
+    [[maybe_unused]] Event current_event;
+
+    // fd+1 is correct: select needs the the highest fd (+1) as the first
+    // parameter.
+    select(fd + 1, &watch_set, NULL, NULL, &tv);
+
+    // Read event(s) from non-blocking inotify fd (non-blocking specified in
+    // inotify_init1 above).
+    int length = read(fd, buffer, EVENT_BUF_LEN);
+    if (run && length < 0) {IN_CREATE
+      // throw std::runtime_error("failed to read event(s) from inotify fd");
+      return;
+    }
+
+    // Loop through event buffer
+    for (int i = 0; i < length;) {
+      struct inotify_event *event = (struct inotify_event *)&buffer[i];
+      // Never actually seen this
+      if (event->wd == -1) {
+        throw std::runtime_error(
+            "inotify IN_Q_OVERFLOW - Event queue overflowed");
+      }
+      // Never seen this either
+      if (event->mask & IN_Q_OVERFLOW) {
+        throw std::runtime_error(
+            "inotify IN_Q_OVERFLOW - Event queue overflowed");
+      }
+      if (event->len) {
+        if (event->mask & IN_IGNORED) {
+          // Watch was removed explicitly (inotify_rm_watch) or automatically
+          // (file was deleted, or filesystem was unmounted)
+          throw std::runtime_error(
+              "inotify IN_IGNORED - Watch was removed explicitly "
+              "(inotify_rm_watch) or automatically (file was deleted, or "
+              "filesystem was unmounted)");
+        }
+        if (event->mask & IN_CREATE) {
+          current_dir = watch.get(event->wd);
+          if (event->mask & IN_ISDIR) {
+            new_dir = current_dir + "/" + event->name;
+            wd = inotify_add_watch(fd, new_dir.c_str(), WATCH_FLAGS);
+            watch.insert(event->wd, event->name, wd);
+            total_dir_events++;
+            run_callback(Event::DIR_CREATED, current_dir, event->name);
+          } else {
+            total_file_events++;
+            run_callback(Event::FILE_CREATED, current_dir, event->name);
+          }
+        } else if (event->mask & IN_MODIFY) {
+          if (event->mask & IN_ISDIR) {
+            run_callback(Event::DIR_MODIFIED, current_dir, event->name);
+          } else {
+            run_callback(Event::FILE_MODIFIED, current_dir, event->name);
+          }
+        } else if (event->mask & IN_DELETE) {
+          if (event->mask & IN_ISDIR) {
+            // Directory was deleted
+            new_dir = watch.erase(event->wd, event->name, &wd);
+            inotify_rm_watch(fd, wd);
+            total_dir_events--;
+            run_callback(Event::DIR_DELETED, current_dir, event->name);
+          } else {
+            // File was deleted
+            current_dir = watch.get(event->wd);
+            total_file_events--;
+            run_callback(Event::FILE_DELETED, current_dir, event->name);
+          }
+        } else if (event->mask & IN_OPEN) {
+          current_dir = watch.get(event->wd);
+          if (event->mask & IN_ISDIR) {
+            // Directory was opened
+            run_callback(Event::DIR_OPENED, current_dir, event->name);
+          } else {
+            // File was opened
+            run_callback(Event::FILE_OPENED, current_dir, event->name);
+          }
+        } else if (event->mask & IN_CLOSE) {
+          current_dir = watch.get(event->wd);
+          if (event->mask & IN_ISDIR) {
+            // Directory was closed
+            run_callback(Event::DIR_CLOSED, current_dir, event->name);
+          } else {
+            // File was closed
+            run_callback(Event::FILE_CLOSED, current_dir, event->name);
+          }
+        }
+      }
+      i += EVENT_SIZE + event->len;
+    }
+  }
+#endif
+
+  // Root directory of the file watcher
+  // std::vector<std::filesystem::path> paths;
+
+private:
+  bool run;
+  int fd;
+  fd_set watch_set;
+  struct timeval tv {0, 0};
+  Watch watch;
+
+  // Callback functions based on file status
+  std::map<Event, std::function<void(const EventInfo &)>> callbacks;
+
+  // std::filesystem::path expand(std::filesystem::path in) {
+  //   const char *home = getenv("HOME");
+  //   if (!home)
+  //     throw std::invalid_argument("HOME environment variable not set.");
+
+  //   std::string result = in.c_str();
+  //   if (result.length() > 0 && result[0] == '~') {
+  //     result = std::string(home) + result.substr(1, result.size() - 1);
+  //     return std::filesystem::path(result);
+  //   }
+  //   return in;
+  // }
+
+  bool is_callback_registered(const Event &event) {
+    return (callbacks.find(event) != callbacks.end());
+  }
+
+  void run_callback(const Event &event, const std::string &current_dir,
+                    const std::string &filename) {
+    if (is_callback_registered(event)) {
+      callbacks[event](EventInfo{
+          event, std::filesystem::path(current_dir + "/" + filename)});
+    }
+  }
+};
